@@ -3,26 +3,30 @@ import { history } from 'umi';
 import { clearAuth, getToken } from './authStorage';
 
 /**
- * Axios client configured for the backend.
- *
- * By default this uses the Umi proxy in .umirc.ts:
- *   /api -> http://localhost:3001
+ * Direct backend connection (NO proxy used anymore)
  */
 export const api = axios.create({
-  baseURL: '/api',
+  baseURL: 'https://forex-backend-production-fdde.up.railway.app/api',
   withCredentials: false,
 });
 
+/**
+ * Attach JWT token automatically
+ */
 api.interceptors.request.use((config) => {
   const token = getToken();
+
   if (token) {
     config.headers = config.headers ?? {};
-    // Most JWT backends use this format.
     (config.headers as any).Authorization = `Bearer ${token}`;
   }
+
   return config;
 });
 
+/**
+ * Handle auth errors globally
+ */
 api.interceptors.response.use(
   (res) => res,
   (err) => {
@@ -30,7 +34,7 @@ api.interceptors.response.use(
 
     if (status === 401) {
       clearAuth();
-      // Avoid redirect loops on auth pages.
+
       const path = history.location?.pathname;
       if (path !== '/login' && path !== '/register') {
         history.push('/login');
@@ -40,6 +44,10 @@ api.interceptors.response.use(
     return Promise.reject(err);
   },
 );
+
+/* =========================
+   AUTH
+========================= */
 
 export type LoginResponse = {
   token: string;
@@ -57,18 +65,23 @@ export type SignupResponse = {
   userId: string;
 };
 
-// Backend routes (per your server.ts)
-//   POST /api/login  { username, password }
-//   POST /api/signup { username, email, password }
 export async function login(params: { username: string; password: string }) {
   const res = await api.post<LoginResponse>('/login', params);
   return res.data;
 }
 
-export async function signup(params: { username: string; email: string; password: string }) {
+export async function signup(params: {
+  username: string;
+  email: string;
+  password: string;
+}) {
   const res = await api.post<SignupResponse>('/signup', params);
   return res.data;
 }
+
+/* =========================
+   TRADING TYPES
+========================= */
 
 export type TradeAction = 'BUY' | 'SELL';
 
@@ -110,6 +123,10 @@ export type Portfolio = {
   trades?: Trade[];
 };
 
+/* =========================
+   API CALLS
+========================= */
+
 export async function fetchPortfolio() {
   const res = await api.get<Portfolio>('/portfolio');
   return res.data;
@@ -125,29 +142,27 @@ export async function fetchTrades() {
   return res.data;
 }
 
+export async function fetchSignals() {
+  const res = await api.get<{ signals: Signal[]; source: string; generatedAt: string }>(
+    '/signals',
+  );
+  return res.data;
+}
+
 export async function addMetaAccount(payload: { accountId: string }) {
   const res = await api.post('/add-meta-account', payload);
   return res.data as { message: string };
 }
 
-export async function fetchSignals() {
-  const res = await api.get<{ signals: Signal[]; source: string; generatedAt: string }>('/signals');
-  return res.data;
-}
+/* =========================
+   TRADES
+========================= */
 
 export type TradeExecutionMode = 'PAPER' | 'MT5';
 
 export type PlaceTradeResponse =
-  | {
-    message: string;
-    mode: 'PAPER';
-    trade: Trade;
-  }
-  | {
-    message: string;
-    mode: 'MT5';
-    taskId: string;
-  };
+  | { message: string; mode: 'PAPER'; trade: Trade }
+  | { message: string; mode: 'MT5'; taskId: string };
 
 export async function placeTrade(payload: {
   symbol: string;
@@ -170,21 +185,17 @@ export type CloseTradeRequest = {
 };
 
 export type CloseTradeResponse =
-  | {
-    message: string;
-    trade: Trade;
-    balance?: number;
-    equity?: number;
-  }
-  | {
-    message: string;
-    taskId: string;
-  };
+  | { message: string; trade: Trade; balance?: number; equity?: number }
+  | { message: string; taskId: string };
 
 export async function closeTrade(tradeId: string, payload: CloseTradeRequest) {
   const res = await api.post(`/trades/${tradeId}/close`, payload);
   return res.data as CloseTradeResponse;
 }
+
+/* =========================
+   MT5
+========================= */
 
 export type Mt5LinkInfo = {
   mt5Account: string | null;
