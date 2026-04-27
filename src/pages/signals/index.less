@@ -1,0 +1,247 @@
+.page {
+  min-height: 100vh;
+  background: #0a0a0a;
+  color: #fff;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  padding: 0 0 60px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px 32px;
+  border-bottom: 1px solid #1a1a1a;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.title {
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: 3px;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.sub {
+  font-size: 11px;
+  color: #333;
+  letter-spacing: 1px;
+}
+
+.section {
+  padding: 32px;
+  border-bottom: 1px solid #111;
+}
+
+.sectionTitle {
+  font-size: 11px;
+  letter-spacing: 3px;
+  color: #444;
+  text-transform: uppercase;
+  margin: 0 0 20px;
+  font-weight: 500;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 80vh;
+  color: #555;
+  font-size: 14px;
+  letter-spacing: 2px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 12px;
+}
+
+.card {
+  background: #111;
+  border: 1px solid #1e1e1e;
+  border-radius: 10px;
+  padding: 18px;
+}
+
+.cardTop {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.symbol {
+  color: #fff;
+  font-weight: 600;
+}
+
+.actionBuy {
+  color: #00ff88;
+  font-size: 11px;
+  letter-spacing: 1px;
+  font-weight: 700;
+}
+
+.actionSell {
+  color: #ff4466;
+  font-size: 11px;
+  letter-spacing: 1px;
+  font-weight: 700;
+}
+
+.actionHold {
+  color: #888;
+  font-size: 11px;
+  letter-spacing: 1px;
+  font-weight: 700;
+}
+
+.badgeOk {
+  margin-left: auto;
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: #00ff88;
+  border: 1px solid #00ff8833;
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.badgeWarn {
+  margin-left: auto;
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: #ffcc00;
+  border: 1px solid #ffcc0033;
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.badgeBad {
+  margin-left: auto;
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: #ff4466;
+  border: 1px solid #ff446633;
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.kv {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.k {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: #444;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+}
+
+.v {
+  font-size: 13px;
+  color: #ccc;
+}
+
+.reason {
+  font-size: 11px;
+  color: #333;
+  margin: 0;
+  line-height: 1.6;
+  border-top: 1px solid #1a1a1a;
+  padding-top: 12px;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+
+.btn {
+  background: #00ff88;
+  border: none;
+  color: #000;
+  font-weight: 800;
+  letter-spacing: 1px;
+  padding: 9px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.btnSecondary {
+  background: transparent;
+  border: 1px solid #1e1e1e;
+  color: #888;
+  font-weight: 700;
+  letter-spacing: 1px;
+  padding: 9px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.lotRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #1a1a1a;
+}
+
+.lotLabel {
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: #444;
+  text-transform: uppercase;
+}
+
+.lotInput {
+  width: 120px;
+  background: #0a0a0a;
+  border: 1px solid #1e1e1e;
+  color: #fff;
+  border-radius: 6px;
+  padding: 8px 10px;
+  outline: none;
+  font-family: inherit;
+}
+
+.statusOk {
+  margin-top: 10px;
+  color: #00ff88;
+  font-size: 12px;
+}
+
+.statusErr {
+  margin-top: 10px;
+  color: #ff4466;
+  font-size: 12px;
+}
+
+.modeSelect {
+  background: transparent;
+  border: 1px solid #1e1e1e;
+  color: #888;
+  font-weight: 700;
+  letter-spacing: 1px;
+  padding: 9px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.error {
+  color: #ff4466;
+  font-size: 12px;
+}
