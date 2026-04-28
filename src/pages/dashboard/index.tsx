@@ -45,6 +45,7 @@ export default function Dashboard() {
 
     const [portfolio, setPortfolio] = useState<Portfolio | null>(null);
     const [trades, setTrades] = useState<Trade[]>([]);
+    const [activeTrades, setActiveTrades] = useState<Trade[]>([]);
 
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -85,10 +86,11 @@ export default function Dashboard() {
         setError(null);
         setLoading(true);
 
-        const [portfolioRes, pricesRes, activeTradesRes, mt5Res, metaApiRes] = await Promise.allSettled([
+        const [portfolioRes, pricesRes, activeTradesRes, allTradesRes, mt5Res, metaApiRes] = await Promise.allSettled([
             fetchPortfolio(),
             fetchPrices(),
             fetchActiveTrades(),
+            fetchTrades(),
             fetchMt5Link(),
             fetchMetaApiStatus(),
         ]);
@@ -96,23 +98,37 @@ export default function Dashboard() {
         try {
             if (portfolioRes.status === 'fulfilled') {
                 setPortfolio(portfolioRes.value);
-                // Use active trades for live price data
-                if (activeTradesRes.status === 'fulfilled') {
-                    setTrades(activeTradesRes.value.trades);
-                    setLivePrices(activeTradesRes.value.prices);
-                    setLastUpdated(activeTradesRes.value.time);
+                
+                // Set all trades for history
+                if (allTradesRes.status === 'fulfilled') {
+                    console.log('All trades loaded:', allTradesRes.value);
+                    setTrades(allTradesRes.value);
                 } else {
+                    console.log('Using portfolio trades:', portfolioRes.value.trades);
                     setTrades(portfolioRes.value.trades ?? []);
                 }
-            } else {
-                // Fallback to regular trades if active trades fails
+                
+                // Set active trades for live price data
                 if (activeTradesRes.status === 'fulfilled') {
-                    setPortfolio({ balance: INITIAL_BALANCE, equity: INITIAL_BALANCE });
-                    setTrades(activeTradesRes.value.trades);
+                    setActiveTrades(activeTradesRes.value.trades);
+                    setLivePrices(activeTradesRes.value.prices);
+                    setLastUpdated(activeTradesRes.value.time);
+                }
+            } else {
+                // Fallback
+                setPortfolio({ balance: INITIAL_BALANCE, equity: INITIAL_BALANCE });
+                
+                if (allTradesRes.status === 'fulfilled') {
+                    setTrades(allTradesRes.value);
+                } else {
+                    setTrades([]);
+                }
+                
+                if (activeTradesRes.status === 'fulfilled') {
+                    setActiveTrades(activeTradesRes.value.trades);
                     setLivePrices(activeTradesRes.value.prices);
                 } else {
-                    setPortfolio({ balance: INITIAL_BALANCE, equity: INITIAL_BALANCE });
-                    setTrades([]);
+                    setActiveTrades([]);
                 }
             }
 
