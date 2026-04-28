@@ -5,6 +5,7 @@ import {
   fetchMt5Link,
   fetchSignals,
   placeTrade,
+  fetchMetaApiStatus,
   type PlaceTradeResponse,
   type Signal,
   type TradeAction,
@@ -78,16 +79,22 @@ export default function SignalsPage() {
 
   const [execution, setExecution] = useState<TradeExecutionMode>('PAPER');
   const [mt5BridgeKey, setMt5BridgeKey] = useState<string | null>(null);
+  const [metaApiStatus, setMetaApiStatus] = useState<any>(null);
 
   const load = async () => {
     setLoading(true);
     setError(null);
 
     try {
-      const [data, mt5] = await Promise.all([fetchSignals(), fetchMt5Link()]);
+      const [data, mt5, metaApi] = await Promise.all([
+        fetchSignals(), 
+        fetchMt5Link(),
+        fetchMetaApiStatus()
+      ]);
       setSignals(data.signals ?? []);
       setGeneratedAt(data.generatedAt);
       setMt5BridgeKey(mt5.mt5BridgeKey ?? null);
+      setMetaApiStatus(metaApi);
     } catch (err: any) {
       const apiMsg = err?.response?.data?.error ?? err?.response?.data?.message;
       setError(apiMsg ?? err?.message ?? 'Failed to load signals');
@@ -129,6 +136,10 @@ export default function SignalsPage() {
         throw new Error('MT5 is not linked. Go to Profile → MT5 demo bridge and link it first.');
       }
 
+      if (execution === 'META_API' && !metaApiStatus?.connected) {
+        throw new Error('MetaApi is not connected. Go to Profile → MetaApi Cloud Connection and connect it first.');
+      }
+
       const res: PlaceTradeResponse = await placeTrade({
         symbol: signal.symbol,
         action: signal.action as TradeAction,
@@ -143,6 +154,11 @@ export default function SignalsPage() {
         setStatusByKey((p) => ({
           ...p,
           [key]: { ok: `Queued to MT5 bridge (task ${res.taskId}). It will appear in Dashboard after execution.` },
+        }));
+      } else if (res.mode === 'META_API') {
+        setStatusByKey((p) => ({
+          ...p,
+          [key]: { ok: 'Trade placed via MetaApi. Check Dashboard → Open Positions.' },
         }));
       } else {
         setStatusByKey((p) => ({
@@ -178,10 +194,15 @@ export default function SignalsPage() {
             className={styles.modeSelect}
             value={execution}
             onChange={(e) => setExecution(e.target.value as TradeExecutionMode)}
-            title={execution === 'MT5' && !mt5BridgeKey ? 'MT5 not linked (go to Profile)' : 'Execution mode'}
+            title={
+              execution === 'MT5' && !mt5BridgeKey ? 'MT5 not linked (go to Profile)' :
+              execution === 'META_API' && !metaApiStatus?.connected ? 'MetaApi not connected (go to Profile)' :
+              'Execution mode'
+            }
           >
             <option value="PAPER">PAPER</option>
             <option value="MT5">MT5 (DEMO)</option>
+            <option value="META_API">MetaApi Cloud</option>
           </select>
 
           <button className={styles.btnSecondary} onClick={load} type="button">
@@ -297,6 +318,8 @@ export default function SignalsPage() {
                         : g.okToSuggestTrade
                           ? execution === 'MT5'
                             ? 'PLACE ON MT5'
+                            : execution === 'META_API'
+                            ? 'PLACE ON META_API'
                             : 'PLACE TRADE'
                           : 'USE ON DASHBOARD'}
                     </button>

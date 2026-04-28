@@ -7,6 +7,7 @@ import { clearAuth, getToken } from './authStorage';
  */
 export const api = axios.create({
   baseURL: 'https://forex-backend-production-fdde.up.railway.app/api',
+  //baseURL: 'http://localhost:3001/api',
   withCredentials: false,
 });
 
@@ -158,11 +159,12 @@ export async function addMetaAccount(payload: { accountId: string }) {
    TRADES
 ========================= */
 
-export type TradeExecutionMode = 'PAPER' | 'MT5';
+export type TradeExecutionMode = 'PAPER' | 'MT5' | 'META_API';
 
 export type PlaceTradeResponse =
   | { message: string; mode: 'PAPER'; trade: Trade }
-  | { message: string; mode: 'MT5'; taskId: string };
+  | { message: string; mode: 'MT5'; taskId: string }
+  | { message: string; mode: 'META_API'; trade: Trade };
 
 export async function placeTrade(payload: {
   symbol: string;
@@ -221,4 +223,64 @@ export async function linkMt5(payload: { account?: string; server?: string }) {
 export async function unlinkMt5() {
   const res = await api.post('/mt5/unlink');
   return res.data as { message: string };
+}
+
+/* =========================
+   META API
+========================= */
+
+export type MetaApiStatus = {
+  connected: boolean;
+  accountId: string | null;
+  status: string;
+};
+
+export type MetaApiAccountInfo = {
+  accountId: string;
+  balance: number;
+  equity: number;
+  margin: number;
+  freeMargin: number;
+  profit: number;
+  server: string;
+  currency: string;
+  leverage: number;
+};
+
+export type MetaApiPosition = {
+  id: string;
+  symbol: string;
+  type: 'BUY' | 'SELL';
+  volume: number;
+  price: number;
+  currentPrice: number;
+  profit: number;
+  swap: number;
+  margin: number;
+  timestamp: string;
+};
+
+export async function fetchMetaApiStatus() {
+  const res = await api.get<MetaApiStatus>('/metaapi/status');
+  return res.data;
+}
+
+export async function connectMetaApi(payload: { accountId: string }) {
+  const res = await api.post('/metaapi/connect', payload);
+  return res.data as { message: string };
+}
+
+export async function disconnectMetaApi() {
+  const res = await api.post('/metaapi/disconnect');
+  return res.data as { message: string };
+}
+
+export async function fetchMetaApiAccountInfo() {
+  const res = await api.get<MetaApiAccountInfo>('/metaapi/account-info');
+  return res.data;
+}
+
+export async function fetchMetaApiPositions() {
+  const res = await api.get<{ positions: MetaApiPosition[] }>('/metaapi/positions');
+  return res.data;
 }
