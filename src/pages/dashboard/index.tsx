@@ -7,7 +7,9 @@ import {
     fetchPortfolio,
     fetchPrices,
     fetchTrades,
+    fetchActiveTrades,
     placeTrade,
+    fetchMetaApiStatus,
     type PlaceTradeResponse,
     type Portfolio,
     type Trade,
@@ -56,6 +58,7 @@ export default function Dashboard() {
     const [placeOk, setPlaceOk] = useState<string | null>(null);
 
     const [mt5BridgeKey, setMt5BridgeKey] = useState<string | null>(null);
+    const [metaApiStatus, setMetaApiStatus] = useState<any>(null);
 
     const [closingId, setClosingId] = useState<string | null>(null);
     const [closeStatus, setCloseStatus] = useState<Record<string, { ok?: string; err?: string }>>({});
@@ -82,24 +85,34 @@ export default function Dashboard() {
         setError(null);
         setLoading(true);
 
-        const [portfolioRes, pricesRes, tradesRes, mt5Res] = await Promise.allSettled([
+        const [portfolioRes, pricesRes, activeTradesRes, mt5Res, metaApiRes] = await Promise.allSettled([
             fetchPortfolio(),
             fetchPrices(),
-            fetchTrades(),
+            fetchActiveTrades(),
             fetchMt5Link(),
+            fetchMetaApiStatus(),
         ]);
 
         try {
             if (portfolioRes.status === 'fulfilled') {
                 setPortfolio(portfolioRes.value);
-                setTrades(portfolioRes.value.trades ?? (tradesRes.status === 'fulfilled' ? tradesRes.value : []));
-            } else {
-                // If /portfolio isn't implemented on the backend yet, still try /trades.
-                if (tradesRes.status === 'fulfilled') {
-                    setPortfolio({ balance: INITIAL_BALANCE, equity: INITIAL_BALANCE, trades: [] });
-                    setTrades(tradesRes.value);
+                // Use active trades for live price data
+                if (activeTradesRes.status === 'fulfilled') {
+                    setTrades(activeTradesRes.value.trades);
+                    setLivePrices(activeTradesRes.value.prices);
+                    setLastUpdated(activeTradesRes.value.time);
                 } else {
-                    throw portfolioRes.reason;
+                    setTrades(portfolioRes.value.trades ?? []);
+                }
+            } else {
+                // Fallback to regular trades if active trades fails
+                if (activeTradesRes.status === 'fulfilled') {
+                    setPortfolio({ balance: INITIAL_BALANCE, equity: INITIAL_BALANCE });
+                    setTrades(activeTradesRes.value.trades);
+                    setLivePrices(activeTradesRes.value.prices);
+                } else {
+                    setPortfolio({ balance: INITIAL_BALANCE, equity: INITIAL_BALANCE });
+                    setTrades([]);
                 }
             }
 
@@ -124,6 +137,10 @@ export default function Dashboard() {
                 setMt5BridgeKey(mt5Res.value.mt5BridgeKey ?? null);
             }
 
+            if (metaApiRes.status === 'fulfilled') {
+                setMetaApiStatus(metaApiRes.value);
+            }
+
             setLastUpdated(new Date().toLocaleTimeString());
         } catch (err: any) {
             const apiMsg = err?.response?.data?.error ?? err?.response?.data?.message;
@@ -141,9 +158,47 @@ export default function Dashboard() {
         }
 
         loadData();
-        const interval = setInterval(loadData, 30000);
+
+        // Auto-refresh and TP/SL monitoring every 3 seconds
+        const interval = setInterval(async () => {
+            if (getToken()) {
+                try {
+                    // Get active trades with current prices
+                    const activeData = await fetchActiveTrades();
+                    if (activeData.trades && activeData.prices) {
+                        setLivePrices(activeData.prices);
+                        setLastUpdated(activeData.time);
+
+                        // Check for TP/SL hits
+                        for (const trade of activeData.trades) {
+                            if (trade.status === 'OPEN' && trade._id) {
+                                const currentPrice = activeData.prices[trade.symbol];
+                                if (currentPrice) {
+                                    // Check TP hit
+                                    if (trade.takeProfit && 
+                                        ((trade.action === 'BUY' && currentPrice >= trade.takeProfit) ||
+                                         (trade.action === 'SELL' && currentPrice <= trade.takeProfit))) {
+                                        await closeTrade(trade._id, { closeAt: 'TP' });
+                                        console.log(`🎯 TP hit for ${trade.symbol} at ${currentPrice}`);
+                                    }
+                                    // Check SL hit
+                                    else if (trade.stopLoss && 
+                                        ((trade.action === 'BUY' && currentPrice <= trade.stopLoss) ||
+                                         (trade.action === 'SELL' && currentPrice >= trade.stopLoss))) {
+                                        await closeTrade(trade._id, { closeAt: 'SL' });
+                                        console.log(`🛑 SL hit for ${trade.symbol} at ${currentPrice}`);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.error('Auto-refresh error:', error);
+                }
+            }
+        }, 3000);
+
         return () => clearInterval(interval);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // Prefill trade form from /dashboard?symbol=...&action=...&stopLoss=...&takeProfit=...
@@ -642,7 +697,7 @@ function OpenCard({
                     type="button"
                     onClick={() => onClose('TP')}
                     disabled={!canCloseAtTp || closing}
-                    title={!canCloseAtTp ? 'No take profit set' : ''}
+                    title={!canCloseAtTp ? 'No take profit set' : 'Close at take profit price'}
                 >
                     CLOSE @ TP
                 </button>
@@ -652,10 +707,18 @@ function OpenCard({
                     type="button"
                     onClick={() => onClose('SL')}
                     disabled={!canCloseAtSl || closing}
-                    title={!canCloseAtSl ? 'No stop loss set' : ''}
+                    title={!canCloseAtSl ? 'No stop loss set' : 'Close at stop loss price'}
                 >
                     CLOSE @ SL
                 </button>
+
+                <div style={{ fontSize: '11px', color: '#666', marginTop: '8px' }}>
+                    <div>TP: {canCloseAtTp ? trade.takeProfit?.toFixed(5) : 'Not set'}</div>
+                    <div>SL: {canCloseAtSl ? trade.stopLoss?.toFixed(5) : 'Not set'}</div>
+                    <div style={{ fontSize: '10px', marginTop: '4px', fontWeight: 'bold' }}>
+                        💡 MARKET close uses current price (real profit/loss)
+                    </div>
+                </div>
             </div>
 
             {closeMsg?.ok && <div className={styles.closeMsgOk}>{closeMsg.ok}</div>}

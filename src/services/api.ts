@@ -143,6 +143,11 @@ export async function fetchTrades() {
   return res.data;
 }
 
+export async function fetchActiveTrades() {
+  const res = await api.get('/trades/active');
+  return res.data as { trades: Trade[]; prices: Record<string, number>; time: string };
+}
+
 export async function fetchSignals() {
   const res = await api.get<{ signals: Signal[]; source: string; generatedAt: string }>(
     '/signals',
