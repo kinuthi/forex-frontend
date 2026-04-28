@@ -68,16 +68,27 @@ export default function ProfilePage() {
       // Load MetaApi account info if connected
       if (metaApi.connected) {
         try {
+          console.log('Loading MetaApi account info...');
           const [accountInfo, positions] = await Promise.all([
             fetchMetaApiAccountInfo(),
             fetchMetaApiPositions()
           ]);
-          console.log('MetaApi account info:', accountInfo);
-          console.log('MetaApi positions:', positions);
+          console.log('MetaApi account info loaded:', accountInfo);
+          console.log('MetaApi positions loaded:', positions);
+          
           setMetaApiAccountInfo(accountInfo);
-          setMetaApiPositions(positions.positions);
+          setMetaApiPositions(positions.positions || []);
         } catch (err) {
           console.error('Failed to load MetaApi details:', err);
+          setMetaApiAccountInfo({
+            accountId: metaApi.accountId || 'Error loading',
+            balance: 0,
+            equity: 0,
+            server: 'Error loading',
+            currency: 'USD',
+            leverage: 0
+          });
+          setMetaApiPositions([]);
         }
       }
 
@@ -193,6 +204,34 @@ export default function ProfilePage() {
     }
   };
 
+  const onSyncBalance = async () => {
+    setMetaApiMsg({});
+    setMetaApiLoading(true);
+
+    try {
+      if (!metaApiAccountInfo?.balance || !metaApiAccountInfo?.equity) {
+        setMetaApiMsg({ err: 'No MetaApi balance data available to sync' });
+        return;
+      }
+
+      // Update portfolio balance with MetaApi balance
+      setBalance(metaApiAccountInfo.balance);
+      setEquity(metaApiAccountInfo.equity);
+      
+      // Update stored user data
+      if (stored) {
+        const updatedUser = { ...stored, balance: metaApiAccountInfo.balance, equity: metaApiAccountInfo.equity };
+        setStoredUser(updatedUser);
+      }
+
+      setMetaApiMsg({ ok: `Balance synced: $${metaApiAccountInfo.balance.toFixed(2)} from MetaApi` });
+    } catch (err: any) {
+      setMetaApiMsg({ err: 'Failed to sync balance' });
+    } finally {
+      setMetaApiLoading(false);
+    }
+  };
+
   return (
     <div className={styles.page}>
       <header className={styles.header}>
@@ -208,7 +247,11 @@ export default function ProfilePage() {
           <div className={styles.grid}>
             <div>
               <span className={styles.k}>Username</span>
-              <span className={styles.v}>{stored?.username ?? '—'}</span>
+              <span className={styles.v}>
+                {stored?.username && stored?.username !== stored?.email 
+                  ? stored.username 
+                  : stored?.email?.split('@')[0] || '—'}
+              </span>
             </div>
             <div>
               <span className={styles.k}>Email</span>
@@ -342,6 +385,17 @@ export default function ProfilePage() {
                 >
                   REFRESH STATUS
                 </button>
+                {metaApiAccountInfo?.balance > 0 && (
+                  <button 
+                    className={styles.btn} 
+                    onClick={onSyncBalance} 
+                    type="button" 
+                    disabled={metaApiLoading}
+                    style={{ marginLeft: '10px' }}
+                  >
+                    SYNC BALANCE
+                  </button>
+                )}
               </>
             )}
           </div>
